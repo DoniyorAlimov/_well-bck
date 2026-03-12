@@ -13,6 +13,15 @@ router.get('/', async (req, res) => {
     const assets = await prisma.asset.findMany({
       include: {
         utilityType: true,
+        attributes: {
+          include: {
+            assignments: {
+              include: {
+                PHDTag: true
+              }
+            }
+          }
+        }
       },
       orderBy: {
         name: 'asc',
@@ -22,6 +31,49 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to fetch assets' });
+  }
+});
+
+// GET tags for autocomplete
+router.get('/tags', [auth], async (req: Request, res: Response) => {
+  const { q } = req.query;
+  try {
+    const where = q ? { tagname: { contains: String(q) } } : {};
+    const tags = await prisma.pHDTag.findMany({
+      where,
+      take: 50,
+      orderBy: { tagname: 'asc' }
+    });
+    res.json(tags);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch tags' });
+  }
+});
+
+// POST create/update assignment
+router.post('/assign', [auth, admin], async (req: Request, res: Response) => {
+  const { attributeId, tagName } = req.body;
+
+  try {
+    // 1. Find the tag
+    const tag = await prisma.pHDTag.findFirst({ where: { tagname: tagName } });
+    if (!tag) {
+       return res.status(404).json({ error: 'Tag not found' });
+    }
+
+    // 2. Clear old assignments for this attribute (enforce 1:1 for now)
+    await prisma.assignment.deleteMany({ where: { attributeId: attributeId } });
+
+    // 3. Create new assignment
+    const assignment = await prisma.assignment.create({
+      data: { attributeId, PHDTagId: tag.id }
+    });
+
+    res.json(assignment);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to assign tag' });
   }
 });
 
