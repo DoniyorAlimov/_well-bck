@@ -157,4 +157,28 @@ router.post('/', [auth, admin], async (req: Request, res: Response) => {
   }
 });
 
+// DELETE an asset
+router.delete('/:id', [auth, admin], async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const assetId = parseInt(id, 10);
+
+  if (isNaN(assetId)) {
+    return res.status(400).json({ error: 'Invalid asset ID' });
+  }
+
+  try {
+    const asset = await prisma.asset.findUnique({
+      where: { id: assetId },
+    });
+
+    if (!asset) return res.status(404).json({ error: 'Asset not found' });
+
+    await prisma.asset.delete({ where: { id: assetId } });
+    res.json(asset);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete asset' });
+  }
+});
+
 export default router;
