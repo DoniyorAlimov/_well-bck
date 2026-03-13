@@ -28,7 +28,7 @@ if (!getKey()) {
 }
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: "http://localhost:5173" }));
 app.use("/api/assets", assets);
 app.use("/api/units", units);
 app.use("/api/attribute-types", attributeTypes);

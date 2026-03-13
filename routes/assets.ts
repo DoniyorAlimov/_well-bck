@@ -86,7 +86,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST create/update assignment
-router.post('/assign', [auth, admin], async (req: Request, res: Response) => {
+router.post('/assign', async (req: Request, res: Response) => {
   const { attributeId, tagName } = req.body;
 
   try {
