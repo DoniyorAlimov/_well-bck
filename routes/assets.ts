@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET tags for autocomplete
-router.get('/tags', [auth], async (req: Request, res: Response) => {
+router.get('/tags', async (req: Request, res: Response) => {
   const { q } = req.query;
   try {
     const where = q ? { tagname: { contains: String(q) } } : {};
@@ -48,6 +48,40 @@ router.get('/tags', [auth], async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to fetch tags' });
+  }
+});
+
+// GET a single asset by ID
+router.get('/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const assetId = parseInt(id, 10);
+  if (isNaN(assetId)) {
+    return res.status(400).json({ error: 'Invalid asset ID' });
+  }
+  try {
+    const asset = await prisma.asset.findUnique({
+      where: { id: assetId },
+      include: {
+        utilityType: true,
+        attributes: {
+          include: {
+            assignments: {
+              include: {
+                PHDTag: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+    res.json(asset);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch asset' });
   }
 });
 
