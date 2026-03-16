@@ -10,6 +10,50 @@ import { prisma } from "../prisma/client";
 
 const router = express.Router();
 
+// GET latest single record for Real-Time view
+router.get("/latest", async (req: Request, res: Response) => {
+  const { tagId } = req.query;
+  if (!tagId) return res.status(400).send({ error: "tagId is required" });
+
+  try {
+    const record = await prisma.record.findFirst({
+      where: { PHDTagId: parseInt(tagId as string) },
+      orderBy: { timestamp: "desc" },
+    });
+    res.send(record);
+  } catch (error) {
+    res.status(500).send({ error: "Failed to fetch latest record" });
+  }
+});
+
+// GET summary/aggregations for Min/Max/Avg and Aggregated views
+router.get("/summary", async (req: Request, res: Response) => {
+  const { tagId, start, end } = req.query;
+  if (!tagId || !start || !end) return res.status(400).send({ error: "tagId, start, end are required" });
+
+  try {
+    const stats = await prisma.record.aggregate({
+      where: {
+        PHDTagId: parseInt(tagId as string),
+        timestamp: {
+          gte: start as string,
+          lte: end as string,
+        },
+      },
+      _min: { value: true },
+      _max: { value: true },
+      _avg: { value: true },
+      _sum: { value: true },
+    });
+    
+    res.send(stats);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Failed to fetch summary" });
+  }
+});
+
+// Existing GET / handler
 interface RecordQuery {
   PHDTagIds: string[];
 }
