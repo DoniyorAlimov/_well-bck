@@ -55,7 +55,10 @@ router.get("/summary", async (req: Request, res: Response) => {
 
 // Existing GET / handler
 interface RecordQuery {
-  PHDTagIds: string[];
+  PHDTagIds?: string[];
+  tagId?: string;
+  start?: string;
+  end?: string;
 }
 
 router.get(
@@ -64,7 +67,22 @@ router.get(
     req: Request<RequestParams, ResponseBody, RequestBody, RecordQuery>,
     res: Response
   ) => {
-    const { PHDTagIds } = req.query;
+    const { PHDTagIds, tagId, start, end } = req.query;
+
+    // If the frontend is requesting trend data for a specific tag
+    if (tagId && start && end) {
+      const records = await prisma.record.findMany({
+        where: {
+          PHDTagId: parseInt(tagId as string),
+          timestamp: {
+            gte: start as string,
+            lte: end as string,
+          },
+        },
+        orderBy: { timestamp: "asc" },
+      });
+      return res.send(records);
+    }
 
     if (!PHDTagIds) {
       const records = await prisma.record.findMany();
