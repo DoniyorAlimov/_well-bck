@@ -1,29 +1,21 @@
-import { User } from "@prisma/client";
 import express, { Request, Response } from "express";
-import _ from "lodash";
-import AuthRequest from "../entities/Auth";
 import {
   RequestBody,
   RequestParams,
   RequestQuery,
   ResponseBody,
 } from "../entities/RequestQuery";
-import admin from "../middlewares/admin";
-import auth from "../middlewares/auth";
+import { normalizeDomainUsername } from "../lib/domainUsername";
+import { requireAdmin } from "../middlewares/requireAdmin";
 import { prisma } from "../prisma/client";
-import {
-  updateUserPasswordSchema,
-  updateUserSchema,
-  userSchema,
-} from "../schemas";
-import { generateAuthToken, getHashedPassword } from "../utils/auth";
+import { updateUserSchema, userSchema } from "../schemas";
 
 const router = express.Router();
 
 // Get list of users
 router.get(
   "/",
-  [auth, admin],
+  [requireAdmin],
   async (
     req: Request<RequestParams, ResponseBody, RequestBody, RequestQuery>,
     res: Response
@@ -41,6 +33,7 @@ router.get(
     const select = {
       id: true,
       username: true,
+      domainUsername: true,
       isAdmin: true,
     };
 
@@ -70,75 +63,40 @@ router.get(
   }
 );
 
-// Get users info
-router.get("/me", auth, async (req, res) => {
-  const { user } = req as AuthRequest;
-  const me = await prisma.user.findUnique({
-    where: { id: user.id },
-  });
-
-  res.send(_.pick(me, ["id", "username", "isAdmin", "joined_at"]));
-});
-
-// Register User
-router.post("/", async (req, res) => {
+// Add a user by domain identity — no AD search, an admin types the domain
+// identity string directly (e.g. "CONTOSO\jsmith"). No self-registration.
+router.post("/", requireAdmin, async (req, res) => {
   const validation = userSchema.safeParse(req.body);
   if (!validation.success)
     return res.status(400).send(validation.error.format());
 
-  const { username, password, isAdmin } = req.body as User;
+  const { username, domainUsername, isAdmin } = validation.data;
 
-  const user = await prisma.user.findUnique({ where: { username } });
-  if (user)
+  const [domain, name] = domainUsername.split("\\");
+  if (!domain || !name)
+    return res
+      .status(400)
+      .send({ message: 'domainUsername must be in the form "DOMAIN\\username".' });
+
+  const normalized = normalizeDomainUsername(domain, name);
+
+  const existing = await prisma.user.findUnique({ where: { domainUsername: normalized } });
+  if (existing)
     return res.status(400).send({ message: "User already registered." });
-
-  const hashed = await getHashedPassword(password);
 
   const newUser = await prisma.user.create({
     data: {
       username,
-      password: hashed,
+      domainUsername: normalized,
       isAdmin,
     },
   });
 
-  const token = generateAuthToken(newUser);
-
-  res
-    .status(201)
-    .header("x-auth-token", token)
-    .send(_.pick(newUser, ["id", "username", "isAdmin", "joined_at"]));
-});
-
-// Change User Password
-router.put("/", auth, async (req, res) => {
-  const { id } = (req as AuthRequest).user;
-  const user = await prisma.user.findUnique({
-    where: { id },
-  });
-
-  if (!user)
-    return res.send({ message: "The user with the given ID was not found." });
-
-  const validation = updateUserPasswordSchema.safeParse(req.body);
-  if (!validation.success)
-    return res.status(400).send(validation.error.format());
-
-  const { password } = req.body as User;
-  const hashed = await getHashedPassword(password);
-
-  const updatedUser = await prisma.user.update({
-    where: { id },
-    data: {
-      password: hashed,
-    },
-  });
-
-  res.send(_.pick(updatedUser, ["id", "username", "isAdmin", "joined_at"]));
+  res.status(201).send(newUser);
 });
 
 // Update User
-router.put("/:id", [auth, admin], async (req: Request, res: Response) => {
+router.put("/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
 
   const user = await prisma.user.findUnique({
@@ -153,21 +111,30 @@ router.put("/:id", [auth, admin], async (req: Request, res: Response) => {
   if (!validation.success)
     return res.status(400).send(validation.error.format());
 
-  const { username, isAdmin } = req.body as User;
+  const { username, domainUsername, isAdmin } = validation.data;
 
-  const sameUser = await prisma.user.findUnique({
-    where: { username },
+  const [domain, name] = domainUsername.split("\\");
+  if (!domain || !name)
+    return res
+      .status(400)
+      .send({ message: 'domainUsername must be in the form "DOMAIN\\username".' });
+
+  const normalized = normalizeDomainUsername(domain, name);
+
+  const sameUser = await prisma.user.findFirst({
+    where: { OR: [{ username }, { domainUsername: normalized }] },
   });
 
   if (sameUser && sameUser.id !== id)
     return res
       .status(400)
-      .send({ message: "The user with this tagname is already exists." });
+      .send({ message: "A user with this username or domain identity already exists." });
 
   const updatedUser = await prisma.user.update({
     where: { id },
     data: {
       username,
+      domainUsername: normalized,
       isAdmin,
     },
   });
@@ -175,39 +142,8 @@ router.put("/:id", [auth, admin], async (req: Request, res: Response) => {
   res.send(updatedUser);
 });
 
-// Change users password (only for admin users)
-router.put(
-  "/set-password/:id",
-  [auth, admin],
-  async (req: Request, res: Response) => {
-    const id = parseInt(req.params.id);
-
-    const user = await prisma.user.findUnique({
-      where: { id },
-    });
-    if (!user)
-      return res
-        .status(404)
-        .send({ message: "The user with the given ID was not found." });
-
-    const validation = updateUserPasswordSchema.safeParse(req.body);
-    if (!validation.success)
-      return res.status(400).send(validation.error.format());
-
-    const { password } = req.body;
-    const hashed = await getHashedPassword(password);
-
-    await prisma.user.update({
-      where: { id },
-      data: { password: hashed },
-    });
-
-    res.send({ message: "Password was updated" });
-  }
-);
-
 // Delete users
-router.delete("/:id", [auth, admin], async (req: Request, res: Response) => {
+router.delete("/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
 
   const user = await prisma.user.findUnique({

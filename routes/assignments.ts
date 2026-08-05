@@ -1,5 +1,4 @@
 import express from "express";
-import auth from "../middlewares/auth";
 import { prisma } from "../prisma/client";
 import { assignmentSchema, updateAssignmentSchema } from "../schemas";
 import { Assignment } from "@prisma/client";
@@ -19,7 +18,7 @@ router.get("/:attrId", async (req, res) => {
   res.send(assignments);
 });
 
-router.post("/", auth, async (req, res) => {
+router.post("/", async (req, res) => {
   const validation = assignmentSchema.safeParse(req.body);
   if (!validation.success)
     return res.status(400).send(validation.error.format());
@@ -47,7 +46,7 @@ router.post("/", auth, async (req, res) => {
   res.status(201).send(newAssignment);
 });
 
-router.put("/:attrId/:tagId", auth, async (req, res) => {
+router.put("/:attrId/:tagId", async (req, res) => {
   const { attrId, tagId } = req.params;
   const attributeId = parseInt(attrId);
   const tag = parseInt(tagId);
@@ -101,7 +100,7 @@ router.put("/:attrId/:tagId", auth, async (req, res) => {
   res.send(updatedAssignment);
 });
 
-router.delete("/:attrId/:tagId", auth, async (req, res) => {
+router.delete("/:attrId/:tagId", async (req, res) => {
   const { attrId, tagId } = req.params;
   const attributeId = parseInt(attrId);
   const tag = parseInt(tagId);

@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import auth from '../middlewares/auth';
-import admin from '../middlewares/admin';
+import { requireAdmin } from '../middlewares/requireAdmin';
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -112,7 +111,7 @@ router.post('/assign', async (req: Request, res: Response) => {
 });
 
 // POST a new asset
-router.post('/', [auth, admin], async (req: Request, res: Response) => {
+router.post('/', requireAdmin, async (req: Request, res: Response) => {
   const { name, parentAssetId, utilityTypeName } = req.body;
 
   // Default to 'Field' if utilityTypeName is missing
@@ -158,7 +157,7 @@ router.post('/', [auth, admin], async (req: Request, res: Response) => {
 });
 
 // DELETE an asset
-router.delete('/:id', [auth, admin], async (req: Request, res: Response) => {
+router.delete('/:id', requireAdmin, async (req: Request, res: Response) => {
   const { id } = req.params;
   const assetId = parseInt(id, 10);
 

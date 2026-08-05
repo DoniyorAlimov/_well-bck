@@ -6,7 +6,6 @@ import {
   RequestQuery,
   ResponseBody,
 } from "../entities/RequestQuery";
-import auth from "../middlewares/auth";
 import { prisma } from "../prisma/client";
 import { unitSchema } from "../schemas";
 
@@ -64,7 +63,7 @@ router.get("/:id", async (req, res) => {
   res.send(unit);
 });
 
-router.post("/", auth, async (req, res) => {
+router.post("/", async (req, res) => {
   const validation = unitSchema.safeParse(req.body);
   if (!validation.success)
     return res.status(400).send(validation.error.format());
@@ -89,7 +88,7 @@ router.post("/", auth, async (req, res) => {
   res.status(201).send(newUnit);
 });
 
-router.put("/:id", auth, async (req, res) => {
+router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
   const unit = await prisma.unit.findUnique({
@@ -125,7 +124,7 @@ router.put("/:id", auth, async (req, res) => {
   res.status(200).send(updatedUnit);
 });
 
-router.delete("/:id", auth, async (req, res) => {
+router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
   const unit = await prisma.unit.findUnique({

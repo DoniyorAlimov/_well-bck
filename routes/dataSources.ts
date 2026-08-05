@@ -1,6 +1,5 @@
 import { DataSource } from "@prisma/client";
 import express from "express";
-import auth from "../middlewares/auth";
 import { prisma } from "../prisma/client";
 import { dataSourceSchema } from "../schemas";
 
@@ -19,7 +18,7 @@ router.get("/:id", async (req, res) => {
   res.send(dataSource);
 });
 
-router.put("/:id", auth, async (req, res) => {
+router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   const dataSource = await prisma.dataSource.findUnique({
     where: { id },

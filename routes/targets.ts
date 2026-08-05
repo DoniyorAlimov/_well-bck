@@ -6,7 +6,6 @@ import {
   ResponseBody,
 } from "../entities/RequestQuery";
 import { prisma } from "../prisma/client";
-import auth from "../middlewares/auth";
 import { targetSchema, updateTargetSchema } from "../schemas";
 import { Target } from "@prisma/client";
 
@@ -35,7 +34,7 @@ router.get(
   }
 );
 
-router.post("/", auth, async (req, res) => {
+router.post("/", async (req, res) => {
   const validation = targetSchema.safeParse(req.body);
   if (!validation.success)
     return res.status(400).send(validation.error.format());
@@ -77,7 +76,7 @@ router.post("/", auth, async (req, res) => {
   res.status(201).send(newTarget);
 });
 
-router.put("/:id", auth, async (req, res) => {
+router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
   const target = await prisma.target.findUnique({

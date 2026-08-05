@@ -1,5 +1,4 @@
 import express, { Request, Response } from "express";
-import auth from "../middlewares/auth";
 import { prisma } from "../prisma/client";
 import { attributeSchema } from "../schemas";
 import { Attribute } from "@prisma/client";
@@ -52,7 +51,7 @@ router.get("/:id", async (req, res) => {
   res.send(attribute);
 });
 
-router.post("/", auth, async (req, res) => {
+router.post("/", async (req, res) => {
   const validation = attributeSchema.safeParse(req.body);
   if (!validation.success)
     return res.status(400).send(validation.error.format());
@@ -76,7 +75,7 @@ router.post("/", auth, async (req, res) => {
   res.status(201).send(newAttribute);
 });
 
-router.put("/:id", auth, async (req, res) => {
+router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
   const attribute = await prisma.attribute.findUnique({
@@ -108,7 +107,7 @@ router.put("/:id", auth, async (req, res) => {
   res.send(updatedAttribute);
 });
 
-router.delete("/:id", auth, async (req, res) => {
+router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
   const attribute = await prisma.attribute.findUnique({

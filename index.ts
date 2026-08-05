@@ -1,47 +1,61 @@
-import express from "express";
+import "dotenv/config";
+import express, { Router } from "express";
 import fs from "fs";
 import https from "https";
-import path from "path";
 import { getCertPassword, getCertPath } from "./digitCert";
 import job from "./jobs/job";
 import cors from "cors";
+import { authErrorHandler } from "./middlewares/authErrorHandler";
+import { sessionMiddleware } from "./middlewares/session";
+import { ssoAuthMiddleware } from "./middlewares/sso";
 import PHDTags from "./routes/PHDTags";
 import assets from "./routes/assets";
 import assignments from "./routes/assignments";
 import attributeTypes from "./routes/attributeTypes";
 import attributes from "./routes/attributes";
-import auth from "./routes/auth";
 import constants from "./routes/constants";
 import dataSources from "./routes/dataSources";
+import frontend from "./routes/frontend";
+import health from "./routes/health";
+import me from "./routes/me";
 import records from "./routes/records";
 import targets from "./routes/targets";
 import units from "./routes/units";
 import users from "./routes/users";
 import utitlityTypes from "./routes/utitlityTypes";
-import getKey from "./utils/getKey";
+
+// Route modules mount their endpoints relative to '/' — the '/api' prefix
+// lives here so it's defined once for every current and future API router.
+const apiRouter = Router();
+apiRouter.use("/me", me);
+apiRouter.use("/assets", assets);
+apiRouter.use("/units", units);
+apiRouter.use("/attribute-types", attributeTypes);
+apiRouter.use("/utility-types", utitlityTypes);
+apiRouter.use("/attributes", attributes);
+apiRouter.use("/phd-tags", PHDTags);
+apiRouter.use("/assignments", assignments);
+apiRouter.use("/targets", targets);
+apiRouter.use("/records", records);
+apiRouter.use("/data-sources", dataSources);
+apiRouter.use("/constants", constants);
+apiRouter.use("/users", users);
 
 const app = express();
 
-if (!getKey()) {
-  console.error("FATAL ERROR: secret key is not defined.");
-  process.exit(1);
-}
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
 
-app.use(express.json()); 
-app.use(cors({ origin: "http://localhost:5173" }));
-app.use("/api/assets", assets);
-app.use("/api/units", units);
-app.use("/api/attribute-types", attributeTypes);
-app.use("/api/utility-types", utitlityTypes);
-app.use("/api/attributes", attributes);
-app.use("/api/phd-tags", PHDTags);
-app.use("/api/assignments", assignments);
-app.use("/api/targets", targets);
-app.use("/api/records", records);
-app.use("/api/data-sources", dataSources);
-app.use("/api/constants", constants);
-app.use("/api/users", users);
-app.use("/api/auth", auth);
+app.use(health);
+app.use(frontend);
+
+// Everything registered below this point requires Windows SSO (Kerberos/NTLM via SSPI).
+app.use(sessionMiddleware);
+app.use(ssoAuthMiddleware);
+
+app.use("/api", apiRouter);
+
+app.use(authErrorHandler);
 
 job;
 
