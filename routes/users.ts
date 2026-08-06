@@ -35,6 +35,7 @@ router.get(
       username: true,
       domainUsername: true,
       isAdmin: true,
+      joined_at: true,
     };
 
     const count = (await prisma.user.findMany({ where })).length;
