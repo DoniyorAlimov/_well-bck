@@ -5,7 +5,7 @@ import { JobLogger } from "../../misc/logger";
 import { prisma } from "../../prisma/client";
 import getAverageOfDailyRecord from "./getAverageOfDailyRecord";
 import getSumOfDailyRecord from "./getSumOfDailyRecord";
-import { getPreviousDay } from "./helperFunctions";
+import { getPreviousDayDate } from "./helperFunctions";
 
 const MAX_RETRIES = 3; // Maximum number of retry attempts
 const RETRY_DELAY = ms("5s"); // Delay between retries
@@ -15,7 +15,7 @@ const writeDailyRecords = async () => {
   JobLogger.info("Starting job...");
 
   // Getting previous date
-  const timestamp = getPreviousDay();
+  const timestamp = getPreviousDayDate();
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -37,7 +37,7 @@ const writeDailyRecords = async () => {
   }
 };
 
-const proceedTags = async (tx: Prisma.TransactionClient, timestamp: string) => {
+const proceedTags = async (tx: Prisma.TransactionClient, timestamp: Date) => {
   const tags = await tx.pHDTag.findMany({ include: { unit: true } });
 
   for (let tag of tags) {
@@ -59,7 +59,7 @@ const recordValue = async (
   tx: Prisma.TransactionClient,
   tag: PHDTag,
   value: number | undefined,
-  timestamp: string
+  timestamp: Date
 ) =>
   await tx.record.create({
     data: {

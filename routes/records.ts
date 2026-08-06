@@ -20,7 +20,7 @@ router.get("/latest", async (req: Request, res: Response) => {
       where: { PHDTagId: parseInt(tagId as string) },
       orderBy: { timestamp: "desc" },
     });
-    res.send(record);
+    res.json(record);
   } catch (error) {
     res.status(500).send({ error: "Failed to fetch latest record" });
   }
@@ -36,8 +36,8 @@ router.get("/summary", async (req: Request, res: Response) => {
       where: {
         PHDTagId: parseInt(tagId as string),
         timestamp: {
-          gte: start as string,
-          lte: end as string,
+          gte: new Date(start as string),
+          lte: new Date(end as string),
         },
       },
       _min: { value: true },
@@ -75,8 +75,8 @@ router.get(
         where: {
           PHDTagId: parseInt(tagId as string),
           timestamp: {
-            gte: start as string,
-            lte: end as string,
+            gte: new Date(start as string),
+            lte: new Date(end as string),
           },
         },
         orderBy: { timestamp: "asc" },
