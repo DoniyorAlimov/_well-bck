@@ -65,7 +65,7 @@ router.get('/:id', async (req: Request, res: Response) => {
           include: {
             assignments: {
               include: {
-                PHDTag: true,
+                PHDTag: { include: { unit: true } },
               },
             },
           },
