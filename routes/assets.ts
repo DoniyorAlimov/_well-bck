@@ -1,8 +1,7 @@
 import express, { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma/client';
 import { requireAdmin } from '../middlewares/requireAdmin';
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // GET all assets, including their utility type.
@@ -29,7 +28,7 @@ router.get('/', async (req, res) => {
     res.json(assets);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to fetch assets' });
+    res.status(500).json({ message: 'Failed to fetch assets' });
   }
 });
 
@@ -46,7 +45,7 @@ router.get('/tags', async (req: Request, res: Response) => {
     res.json(tags);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to fetch tags' });
+    res.status(500).json({ message: 'Failed to fetch tags' });
   }
 });
 
@@ -55,7 +54,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const assetId = parseInt(id, 10);
   if (isNaN(assetId)) {
-    return res.status(400).json({ error: 'Invalid asset ID' });
+    return res.status(400).json({ message: 'Invalid asset ID' });
   }
   try {
     const asset = await prisma.asset.findUnique({
@@ -75,12 +74,12 @@ router.get('/:id', async (req: Request, res: Response) => {
     });
 
     if (!asset) {
-      return res.status(404).json({ error: 'Asset not found' });
+      return res.status(404).json({ message: 'Asset not found' });
     }
     res.json(asset);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to fetch asset' });
+    res.status(500).json({ message: 'Failed to fetch asset' });
   }
 });
 
@@ -92,7 +91,7 @@ router.post('/assign', async (req: Request, res: Response) => {
     // 1. Find the tag
     const tag = await prisma.pHDTag.findFirst({ where: { tagname: tagName } });
     if (!tag) {
-       return res.status(404).json({ error: 'Tag not found' });
+       return res.status(404).json({ message: 'Tag not found' });
     }
 
     // 2. Clear old assignments for this attribute (enforce 1:1 for now)
@@ -106,28 +105,25 @@ router.post('/assign', async (req: Request, res: Response) => {
     res.json(assignment);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to assign tag' });
+    res.status(500).json({ message: 'Failed to assign tag' });
   }
 });
 
 // POST a new asset
 router.post('/', requireAdmin, async (req: Request, res: Response) => {
-  const { name, parentAssetId, utilityTypeName } = req.body;
+  const { name, parentAssetId, utilityTypeId } = req.body;
 
-  // Default to 'Field' if utilityTypeName is missing
-  const effectiveUtilityTypeName = utilityTypeName || 'Field';
-
-  if (!name || !effectiveUtilityTypeName) {
-    return res.status(400).json({ error: '`name` and `utilityTypeName` are required.' });
+  if (!name || !utilityTypeId) {
+    return res.status(400).json({ message: '`name` and `utilityTypeId` are required.' });
   }
 
   try {
     const utilityType = await prisma.utilityType.findUnique({
-      where: { name: effectiveUtilityTypeName },
+      where: { id: parseInt(utilityTypeId, 10) },
     });
 
     if (!utilityType) {
-      return res.status(400).json({ error: `UtilityType '${effectiveUtilityTypeName}' not found.` });
+      return res.status(400).json({ message: `UtilityType '${utilityTypeId}' not found.` });
     }
 
     const attributeTypes = await prisma.attributeType.findMany();
@@ -150,9 +146,49 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error(error);
     if (error.code === 'P2002' && error.meta?.target?.includes('name')) {
-      return res.status(409).json({ error: `An asset with the name '${name}' already exists.` });
+      return res.status(409).json({ message: `An asset with the name '${name}' already exists.` });
     }
-    res.status(500).json({ error: 'Failed to create asset' });
+    res.status(500).json({ message: 'Failed to create asset' });
+  }
+});
+
+// PUT update an asset
+router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const assetId = parseInt(id, 10);
+
+  if (isNaN(assetId)) {
+    return res.status(400).json({ message: 'Invalid asset ID' });
+  }
+
+  const { name, parentAssetId, utilityTypeId } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ message: '`name` is required.' });
+  }
+
+  try {
+    const existing = await prisma.asset.findUnique({ where: { id: assetId } });
+    if (!existing) return res.status(404).json({ message: 'Asset not found' });
+
+    const updatedAsset = await prisma.asset.update({
+      where: { id: assetId },
+      data: {
+        name,
+        ...(parentAssetId !== undefined && {
+          parentAssetId: parentAssetId === null ? null : parseInt(parentAssetId, 10),
+        }),
+        ...(utilityTypeId !== undefined && { utilityTypeId: parseInt(utilityTypeId, 10) }),
+      },
+    });
+
+    res.json(updatedAsset);
+  } catch (error: any) {
+    console.error(error);
+    if (error.code === 'P2002' && error.meta?.target?.includes('name')) {
+      return res.status(409).json({ message: `An asset with the name '${name}' already exists.` });
+    }
+    res.status(500).json({ message: 'Failed to update asset' });
   }
 });
 
@@ -162,7 +198,7 @@ router.delete('/:id', requireAdmin, async (req: Request, res: Response) => {
   const assetId = parseInt(id, 10);
 
   if (isNaN(assetId)) {
-    return res.status(400).json({ error: 'Invalid asset ID' });
+    return res.status(400).json({ message: 'Invalid asset ID' });
   }
 
   try {
@@ -170,13 +206,23 @@ router.delete('/:id', requireAdmin, async (req: Request, res: Response) => {
       where: { id: assetId },
     });
 
-    if (!asset) return res.status(404).json({ error: 'Asset not found' });
+    if (!asset) return res.status(404).json({ message: 'Asset not found' });
+
+    // parentAsset uses onDelete: NoAction, so the DB rejects deleting a
+    // parent while children still reference it — check first so callers get
+    // a clear message instead of a raw foreign-key-constraint 500.
+    const childCount = await prisma.asset.count({ where: { parentAssetId: assetId } });
+    if (childCount > 0) {
+      return res.status(409).json({
+        message: `This asset has ${childCount} child asset(s). Delete them first.`,
+      });
+    }
 
     await prisma.asset.delete({ where: { id: assetId } });
     res.json(asset);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to delete asset' });
+    res.status(500).json({ message: 'Failed to delete asset' });
   }
 });
 
