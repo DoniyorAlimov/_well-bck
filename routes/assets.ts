@@ -1,6 +1,9 @@
 import express, { Request, Response } from 'express';
 import { prisma } from '../prisma/client';
 import { requireAdmin } from '../middlewares/requireAdmin';
+import { createAssetWithAttributes } from '../lib/assetHelpers';
+import { upload } from '../storage';
+import { exportToExcel, importFromExcel } from '../misc/excel/assets';
 
 const router = express.Router();
 
@@ -47,6 +50,16 @@ router.get('/tags', async (req: Request, res: Response) => {
     console.error(error);
     res.status(500).json({ message: 'Failed to fetch tags' });
   }
+});
+
+// GET the asset tree as an Excel workbook
+router.get('/exportToExcel', (req, res) => {
+  exportToExcel(req, res);
+});
+
+// POST a bulk create/rename/delete of assets from an Excel workbook
+router.post('/importFromExcel', requireAdmin, upload.single('excelFile'), (req, res) => {
+  importFromExcel(req, res);
 });
 
 // GET a single asset by ID
@@ -126,20 +139,10 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
       return res.status(400).json({ message: `UtilityType '${utilityTypeId}' not found.` });
     }
 
-    const attributeTypes = await prisma.attributeType.findMany();
-
-    const newAsset = await prisma.asset.create({
-      data: {
-        name,
-        parentAssetId: parentAssetId ? parseInt(parentAssetId, 10) : null,
-        utilityTypeId: utilityType.id,
-        attributes: {
-          create: attributeTypes.map((at) => ({
-            name: at.name,
-            attributeTypeId: at.id,
-          })),
-        },
-      },
+    const newAsset = await createAssetWithAttributes(prisma, {
+      name,
+      parentAssetId: parentAssetId ? parseInt(parentAssetId, 10) : null,
+      utilityTypeId: utilityType.id,
     });
 
     res.status(201).json(newAsset);
