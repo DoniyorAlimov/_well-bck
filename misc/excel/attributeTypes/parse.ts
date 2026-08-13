@@ -26,14 +26,13 @@ export const parseAttributeTypesWorksheet = (worksheet: Worksheet): ParseResult 
     const name = cellText(values[1]);
     const newName = cellText(values[2]);
     const description = cellText(values[3]);
-    const dataType = cellText(values[4]);
-    const unitName = cellText(values[5]);
-    const assetTypeName = cellText(values[6]);
+    const unitName = cellText(values[4]);
+    const assetTypeName = cellText(values[5]);
 
     // Skip fully blank rows (common trailing rows in a template).
-    if (!name && !newName && !description && !dataType && !unitName && !assetTypeName) continue;
+    if (!name && !newName && !description && !unitName && !assetTypeName) continue;
 
-    rows.push({ rowNumber: r, name: name ?? "", newName, description, dataType, unitName, assetTypeName });
+    rows.push({ rowNumber: r, name: name ?? "", newName, description, unitName, assetTypeName });
   }
 
   return { rows };

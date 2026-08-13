@@ -1,7 +1,7 @@
 export const SHEET_NAME = "Attribute Types";
 export const ASSET_TYPES_SHEET_NAME = "Asset Types";
 export const UNITS_SHEET_NAME = "Units";
-export const HEADERS = ["Name", "New Name", "Description", "Data Type", "Unit", "Asset Type"];
+export const HEADERS = ["Name", "New Name", "Description", "Unit", "Asset Type"];
 export const DELETE_KEYWORD = "delete";
 // Matches AttributeType.name/description @db.VarChar(255) in schema.prisma.
 export const MAX_NAME_LENGTH = 255;
@@ -12,7 +12,6 @@ export interface ParsedRow {
   name: string;
   newName: string | null;
   description: string | null;
-  dataType: string | null;
   unitName: string | null;
   assetTypeName: string | null;
 }

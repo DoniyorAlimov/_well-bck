@@ -48,7 +48,6 @@ model AttributeType {
   name          String @db.VarChar(255)
   description   String @db.VarChar(255)
   unitId        Int?
-  dataType      String @db.VarChar(255)
   utilityTypeId Int
 
   attributes  Attribute[]

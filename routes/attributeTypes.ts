@@ -32,7 +32,7 @@ router.post("/", async (req, res) => {
   const validation = attributeTypeSchema.safeParse(req.body);
   if (!validation.success) return res.status(400).send(validation.error.format());
 
-  const { name, description, dataType, unitId, utilityTypeId } = validation.data;
+  const { name, description, unitId, utilityTypeId } = validation.data;
 
   const sameName = await prisma.attributeType.findUnique({
     where: { name_utilityTypeId: { name, utilityTypeId } },
@@ -42,7 +42,7 @@ router.post("/", async (req, res) => {
 
   const created = await prisma.$transaction(async (tx) => {
     const attributeType = await tx.attributeType.create({
-      data: { name, description, dataType, unitId: unitId ?? null, utilityTypeId },
+      data: { name, description, unitId: unitId ?? null, utilityTypeId },
       include: { utilityType: true },
     });
 
@@ -64,7 +64,7 @@ router.put("/:id", async (req, res) => {
   const validation = attributeTypeSchema.safeParse(req.body);
   if (!validation.success) return res.status(400).send(validation.error.format());
 
-  const { name, description, dataType, unitId, utilityTypeId } = validation.data;
+  const { name, description, unitId, utilityTypeId } = validation.data;
 
   const sameName = await prisma.attributeType.findUnique({
     where: { name_utilityTypeId: { name, utilityTypeId } },
@@ -75,7 +75,7 @@ router.put("/:id", async (req, res) => {
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.attributeType.update({
       where: { id },
-      data: { name, description, dataType, unitId: unitId ?? null, utilityTypeId },
+      data: { name, description, unitId: unitId ?? null, utilityTypeId },
       include: { utilityType: true },
     });
 

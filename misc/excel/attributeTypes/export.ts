@@ -29,7 +29,6 @@ export const exportToExcel = async (req: Request, res: Response) => {
       at.name,
       "",
       at.description,
-      at.dataType,
       at.unitId ? unitNameById.get(at.unitId) ?? "" : "",
       at.utilityType.name,
     ]);
@@ -50,12 +49,12 @@ export const exportToExcel = async (req: Request, res: Response) => {
   const lastAssetTypeRow = utilityTypes.length + 1;
   const lastDataRow = Math.max(attributeTypes.length + 1, 1000);
   for (let r = 2; r <= lastDataRow; r++) {
-    worksheet.getCell(r, 5).dataValidation = {
+    worksheet.getCell(r, 4).dataValidation = {
       type: "list",
       allowBlank: true,
       formulae: [`'${UNITS_SHEET_NAME}'!$A$2:$A$${lastUnitRow}`],
     };
-    worksheet.getCell(r, 6).dataValidation = {
+    worksheet.getCell(r, 5).dataValidation = {
       type: "list",
       allowBlank: false,
       formulae: [`'${ASSET_TYPES_SHEET_NAME}'!$A$2:$A$${lastAssetTypeRow}`],

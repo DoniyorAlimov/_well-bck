@@ -26,10 +26,6 @@ export const validateRows = (classified: ClassifiedRow[], context: ImportContext
         });
       }
 
-      if (!row.dataType) {
-        errors.push({ row: row.rowNumber, message: "'Data Type' is required." });
-      }
-
       if (row.unitName && !context.unitByLowerName.has(row.unitName.toLowerCase())) {
         errors.push({ row: row.rowNumber, message: `Unknown 'Unit' '${row.unitName}'.` });
       }

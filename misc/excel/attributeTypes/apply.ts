@@ -32,7 +32,6 @@ export const applyImport = async (
       data: {
         name: row.name,
         description: row.description!,
-        dataType: row.dataType!,
         unitId: unit?.id ?? null,
         utilityTypeId: row.utilityTypeId!,
       },
@@ -48,7 +47,6 @@ export const applyImport = async (
       data: {
         name: row.finalName,
         description: row.description!,
-        dataType: row.dataType!,
         unitId: unit?.id ?? null,
       },
     });

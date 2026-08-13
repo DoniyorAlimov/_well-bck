@@ -39,15 +39,15 @@ async function main() {
   // Defining standard attributes for production analytics
   const attributes = [
     // Actuals
-    { name: "BOE Flow Actual", description: "BOE Flow Actual", unitId: unitM3h.id, dataType: "Float" },
-    { name: "GAS Flow Actual", description: "GAS Flow Actual", unitId: unitM3h.id, dataType: "Float" },
-    { name: "OIL Flow Actual", description: "OIL Flow Actual", unitId: unitM3h.id, dataType: "Float" },
-    { name: "WATER Flow Actual", description: "WATER Flow Actual", unitId: unitM3h.id, dataType: "Float" },
+    { name: "BOE Flow Actual", description: "BOE Flow Actual", unitId: unitM3h.id },
+    { name: "GAS Flow Actual", description: "GAS Flow Actual", unitId: unitM3h.id },
+    { name: "OIL Flow Actual", description: "OIL Flow Actual", unitId: unitM3h.id },
+    { name: "WATER Flow Actual", description: "WATER Flow Actual", unitId: unitM3h.id },
     // Targets
-    { name: "BOE Flow Target", description: "BOE Flow Target", unitId: unitM3h.id, dataType: "Float" },
-    { name: "GAS Flow Target", description: "GAS Flow Target", unitId: unitM3h.id, dataType: "Float" },
-    { name: "OIL Flow Target", description: "OIL Flow Target", unitId: unitM3h.id, dataType: "Float" },
-    { name: "WATER Flow Target", description: "WATER Flow Target", unitId: unitM3h.id, dataType: "Float" },
+    { name: "BOE Flow Target", description: "BOE Flow Target", unitId: unitM3h.id },
+    { name: "GAS Flow Target", description: "GAS Flow Target", unitId: unitM3h.id },
+    { name: "OIL Flow Target", description: "OIL Flow Target", unitId: unitM3h.id },
+    { name: "WATER Flow Target", description: "WATER Flow Target", unitId: unitM3h.id },
   ];
 
   // All 8 flow attributes apply at every level of the production hierarchy
@@ -59,12 +59,11 @@ async function main() {
     for (const utilityType of createdUtilityTypes) {
       await prisma.attributeType.upsert({
         where: { name_utilityTypeId: { name: attr.name, utilityTypeId: utilityType.id } },
-        update: { unitId: attr.unitId, description: attr.description, dataType: attr.dataType },
+        update: { unitId: attr.unitId, description: attr.description },
         create: {
           name: attr.name,
           description: attr.description,
           unitId: attr.unitId,
-          dataType: attr.dataType,
           utilityTypeId: utilityType.id,
         },
       });
