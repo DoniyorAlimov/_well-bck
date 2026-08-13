@@ -24,12 +24,15 @@ async function main() {
     { name: "Pipeline", description: "Transport Pipeline" },
   ];
 
+  const createdUtilityTypes = [];
   for (const ut of utilityTypes) {
-    await prisma.utilityType.upsert({
-      where: { name: ut.name },
-      update: {},
-      create: ut,
-    });
+    createdUtilityTypes.push(
+      await prisma.utilityType.upsert({
+        where: { name: ut.name },
+        update: {},
+        create: ut,
+      })
+    );
   }
 
   // 3. Attribute Types
@@ -47,17 +50,25 @@ async function main() {
     { name: "WATER Flow Target", description: "WATER Flow Target", unitId: unitM3h.id, dataType: "Float" },
   ];
 
+  // All 8 flow attributes apply at every level of the production hierarchy
+  // (Field/Cluster/Well/Pipeline). Each asset type owns its own copy of each
+  // attribute (AttributeType.name is unique per utilityTypeId, not
+  // globally), matching the behavior every asset had before this existed
+  // (every asset got every attribute type).
   for (const attr of attributes) {
-    await prisma.attributeType.upsert({
-      where: { name: attr.name },
-      update: { unitId: attr.unitId },
-      create: {
-        name: attr.name, 
-        description: attr.description,
-        unitId: attr.unitId,
-        dataType: attr.dataType,
-      },
-    });
+    for (const utilityType of createdUtilityTypes) {
+      await prisma.attributeType.upsert({
+        where: { name_utilityTypeId: { name: attr.name, utilityTypeId: utilityType.id } },
+        update: { unitId: attr.unitId, description: attr.description, dataType: attr.dataType },
+        create: {
+          name: attr.name,
+          description: attr.description,
+          unitId: attr.unitId,
+          dataType: attr.dataType,
+          utilityTypeId: utilityType.id,
+        },
+      });
+    }
   }
 
   console.log("Seeding completed.");

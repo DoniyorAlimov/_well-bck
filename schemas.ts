@@ -19,6 +19,14 @@ export const unitSchema = z.object({
   name: z.string().min(1).max(255),
 });
 
+export const attributeTypeSchema = z.object({
+  name: z.string().min(1).max(255),
+  description: z.string().min(1).max(255),
+  dataType: z.string().min(1).max(255),
+  unitId: z.number().nullable().optional(),
+  utilityTypeId: z.number().min(1, "An asset type is required"),
+});
+
 export const assignmentSchema = z.object({
   attributeId: z.number().min(1),
   PHDTagId: z.number().min(1),

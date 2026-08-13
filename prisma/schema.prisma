@@ -15,7 +15,8 @@ model UtilityType {
   name String @unique @db.VarChar(255)
   description String? @db.VarChar(255)
 
-  assets Asset[]
+  assets         Asset[]
+  attributeTypes AttributeType[]
 }
 
 model Asset {
@@ -43,13 +44,19 @@ model Target {
 }
 
 model AttributeType {
-  id   Int    @id @default(autoincrement())
-  name String @unique @db.VarChar(255)
-  description String @db.VarChar(255)
-  unitId Int?
-  dataType String @db.VarChar(255)
+  id            Int    @id @default(autoincrement())
+  name          String @db.VarChar(255)
+  description   String @db.VarChar(255)
+  unitId        Int?
+  dataType      String @db.VarChar(255)
+  utilityTypeId Int
 
-  attributes Attribute[]
+  attributes  Attribute[]
+  utilityType UtilityType @relation(fields: [utilityTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  // Each asset type owns its own attribute definitions — two types can have
+  // an attribute with the same display name, but they're separate rows.
+  @@unique([name, utilityTypeId])
 }
 
 model Attribute {
