@@ -1,4 +1,6 @@
-import express from "express";
+import { Prisma } from "@prisma/client";
+import express, { Request, Response } from "express";
+import { RequestBody, RequestParams, RequestQuery, ResponseBody } from "../entities/RequestQuery";
 import { reconcileAssetAttributesForUtilityTypes } from "../lib/attributeReconciliation";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { exportToExcel, importFromExcel } from "../misc/excel/attributeTypes";
@@ -6,16 +8,58 @@ import { prisma } from "../prisma/client";
 import { attributeTypeSchema } from "../schemas";
 import { upload } from "../storage";
 
+interface AttributeTypeRequestQuery extends RequestQuery {
+  utilityTypeId?: string;
+}
+
 const router = express.Router();
 
-router.get("/", async (req, res) => {
-  const types = await prisma.attributeType.findMany({
-    include: { utilityType: true },
-    orderBy: { id: "asc" },
-  });
+router.get(
+  "/",
+  async (
+    req: Request<RequestParams, ResponseBody, RequestBody, AttributeTypeRequestQuery>,
+    res: Response
+  ) => {
+    const { page, pageSize, searchedName, sortBy, sortOrder, utilityTypeId } = req.query;
 
-  res.send(types);
-});
+    const where: Prisma.AttributeTypeWhereInput = {
+      ...(searchedName && {
+        OR: [
+          { name: { contains: searchedName } },
+          { description: { contains: searchedName } },
+        ],
+      }),
+      ...(utilityTypeId && { utilityTypeId: parseInt(utilityTypeId) }),
+    };
+
+    const direction = sortOrder === "desc" ? "desc" : "asc";
+    const orderBy: Prisma.AttributeTypeOrderByWithRelationInput =
+      sortBy === "description"
+        ? { description: direction }
+        : sortBy === "utilityType"
+        ? { utilityType: { name: direction } }
+        : { name: direction };
+
+    const count = await prisma.attributeType.count({ where });
+
+    const types =
+      page && pageSize
+        ? await prisma.attributeType.findMany({
+            where,
+            include: { utilityType: true },
+            orderBy,
+            skip: (parseInt(page) - 1) * parseInt(pageSize),
+            take: parseInt(pageSize),
+          })
+        : await prisma.attributeType.findMany({
+            where,
+            include: { utilityType: true },
+            orderBy,
+          });
+
+    res.send({ count, results: types });
+  }
+);
 
 // GET the attribute type catalog as an Excel workbook
 router.get("/exportToExcel", (req, res) => {

@@ -8,4 +8,6 @@ export interface RequestQuery {
   page: string;
   pageSize: string;
   searchedName: string;
+  sortBy?: string;
+  sortOrder?: string;
 }
