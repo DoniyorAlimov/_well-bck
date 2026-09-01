@@ -3,6 +3,13 @@ export const TYPES_SHEET_NAME = "Asset Types";
 export const HEADERS = ["Asset Name", "New Name", "Parent Asset Name", "Asset Type"];
 export const DELETE_KEYWORD = "delete";
 
+// Second, independent sheet in the same workbook: one row per existing
+// Attribute, letting the user assign/clear its PHD Tag via a dropdown
+// without touching the Assets sheet at all.
+export const TAGS_SHEET_NAME = "Attribute Tags";
+export const PHD_TAGS_SHEET_NAME = "PHD Tags";
+export const TAGS_HEADERS = ["Asset Name", "Attribute Name", "Unit", "PHD Tag"];
+
 export interface ParsedRow {
   rowNumber: number;
   name: string;
@@ -42,4 +49,32 @@ export interface ImportContext {
   byName: Map<string, AssetSnapshot>;
   byId: Map<number, AssetSnapshot>;
   utilityTypeByLowerName: Map<string, UtilityTypeSnapshot>;
+}
+
+export interface ParsedTagRow {
+  rowNumber: number;
+  assetName: string;
+  attributeName: string;
+  // null means "leave/clear blank" — the row's PHD Tag cell was empty.
+  tagName: string | null;
+}
+
+// Identity for matching a "Attribute Tags" row against the current DB state:
+// Attribute has no unique name of its own, so (asset name, attribute name)
+// is what a row in the sheet actually refers to.
+export const attributeKey = (assetName: string, attributeName: string) => `${assetName}::${attributeName}`;
+
+export interface AttributeSnapshot {
+  id: number;
+  currentTagId: number | null;
+}
+
+export interface PHDTagSnapshot {
+  id: number;
+  tagname: string;
+}
+
+export interface TagImportContext {
+  attributeByKey: Map<string, AttributeSnapshot>;
+  tagByLowerName: Map<string, PHDTagSnapshot>;
 }

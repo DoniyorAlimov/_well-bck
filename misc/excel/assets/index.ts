@@ -4,8 +4,9 @@ import { prisma } from "../../../prisma/client";
 import { assetLogger, assetsLogPath, deleteLog } from "../../logger";
 import { applyImport } from "./apply";
 import { classifyRows } from "./classify";
-import { parseAssetsWorksheet } from "./parse";
-import { AssetSnapshot, ImportContext, SHEET_NAME } from "./types";
+import { parseAssetsWorksheet, parseAttributeTagsWorksheet } from "./parse";
+import { applyTagAssignments, loadTagImportContext, validateTagRows } from "./tagAssignments";
+import { AssetSnapshot, ImportContext, SHEET_NAME, TAGS_SHEET_NAME } from "./types";
 import { validateRows } from "./validate";
 
 export { exportToExcel } from "./export";
@@ -49,19 +50,33 @@ export const importFromExcel = async (req: Request, res: Response) => {
       return res.status(400).send({ message: parsed.headerError });
     }
 
+    const parsedTags = parseAttributeTagsWorksheet(workbook.getWorksheet(TAGS_SHEET_NAME));
+    if ("headerError" in parsedTags) {
+      assetLogger.error(parsedTags.headerError);
+      return res.status(400).send({ message: parsedTags.headerError });
+    }
+
     const context = await loadImportContext();
     const { classified, rowsByName, errors: classifyErrors } = classifyRows(parsed.rows, context);
     const errors = [...classifyErrors, ...validateRows(classified, rowsByName, context)];
+
+    const tagContext = await loadTagImportContext();
+    errors.push(...validateTagRows(parsedTags.rows, tagContext));
 
     if (errors.length) {
       assetLogger.error(`Import rejected with ${errors.length} error(s): ${JSON.stringify(errors)}`);
       return res.status(400).send({ message: `Import failed with ${errors.length} error(s).`, errors });
     }
 
-    const summary = await prisma.$transaction((tx) => applyImport(tx, classified, context));
+    const summary = await prisma.$transaction(async (tx) => {
+      const assetSummary = await applyImport(tx, classified, context);
+      const tagSummary = await applyTagAssignments(tx, parsedTags.rows, tagContext);
+      return { ...assetSummary, ...tagSummary };
+    });
 
     assetLogger.info(
-      `Import completed: ${summary.created} created, ${summary.updated} updated, ${summary.deleted} deleted.`
+      `Import completed: ${summary.created} created, ${summary.updated} updated, ${summary.deleted} deleted, ` +
+        `${summary.tagsAssigned} tag(s) assigned, ${summary.tagsCleared} tag(s) cleared.`
     );
     res.status(201).send(summary);
   } catch (error) {
