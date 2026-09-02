@@ -1,0 +1,20 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- AlterTable
+ALTER TABLE [dbo].[DataSource] DROP CONSTRAINT [DataSource_utcOffsetMinutes_df];
+ALTER TABLE [dbo].[DataSource] DROP COLUMN [utcOffsetMinutes];
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

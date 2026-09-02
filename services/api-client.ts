@@ -1,5 +1,6 @@
-import axios, { AxiosError, AxiosRequestConfig } from "axios";
+import axios, { AxiosError } from "axios";
 import * as https from "https";
+import PHDQuery from "../constants/PHDQuery";
 import { prisma } from "../prisma/client";
 
 const agent = new https.Agent({
@@ -13,22 +14,20 @@ interface TagListResponse {
   DataLength: number;
 }
 
-export interface GetDataResponse {
-  TagName: string;
-  TimeStamp: string[];
-  Value: number[];
-  Confidence: number[];
-}
-
 export interface GetDataQuery {
   TagName: string;
   TimeFormat?: number;
   StartTime: string;
   EndTime: string;
   RawData?: boolean;
-  ReductionData?: "Average";
+  // Semicolon-separated, e.g. "Average;Minimum;Maximum" — see
+  // pim5401.pdf "GetData" parameters.
+  ReductionData?: string;
+  ReductionInterval?: number;
   OutputTimeFormat: number;
-  SampleInterval: number;
+  // Only required for interpolated (non-raw, non-reduction) queries — see
+  // pim5401.pdf "GetData" parameters.
+  SampleInterval?: number;
   MinimumConfidence: number;
   MaxRows?: number;
 }
@@ -75,13 +74,65 @@ export const getTags = async () => {
     .catch((err) => err);
 };
 
-export const getData = async (params: AxiosRequestConfig) => {
+export interface GetDataBatchRawQuery {
+  TagName: string[];
+  StartTime: string;
+  EndTime: string;
+  TimeFormat?: number;
+  OutputTimeFormat: number;
+  MinimumConfidence: number;
+  RawData?: boolean;
+  // Omit both RawData and SampleInterval-less-ness at once: pass exactly
+  // one of RawData=true or a SampleInterval, per pim5401.pdf ("RawData"
+  // required for raw, "SampleInterval" required for interpolated data).
+  SampleInterval?: number;
+}
+
+export interface GetDataBatchRawResponse {
+  TagName: string;
+  TagNumber: number;
+  Units?: string;
+  TimeStamp: string[];
+  Value: number[];
+  Confidence: number[];
+}
+
+// Batched raw or interpolated fetch: every requested tag in a single POST
+// call (arrays only work via POST, per pim5401.pdf — GET is one tag per
+// call), mirroring the pattern already used for the nightly sync job's
+// reduction batching (getDataBatch below), but for raw/SampleInterval data
+// instead of a ReductionData reduction.
+//
+// Pass sampleIntervalMs to get one interpolated value per that interval
+// across the whole StartTime/EndTime window (PHD's "Interpolated" mode);
+// omit it for RawData=true (actual stored samples, no resampling).
+//
+// Verified against the live server (v430.1.2.1): 5 tags x ~18h raw data
+// (~6.4k points/tag at a 10s native scan rate) returned in ~400ms; the
+// SampleInterval variants over the same window returned in ~50ms. Unlike
+// getDataBatch's reduction case, no hang was observed here for a
+// single-day-scale window, but this hasn't been tested over multi-day/week
+// windows with many tags — treat wide custom ranges with caution.
+export const getBatchRawData = async (
+  tagNames: string[],
+  startTime: string,
+  endTime: string,
+  sampleIntervalMs?: number
+): Promise<GetDataBatchRawResponse[]> => {
   const axiosInstance = await createAxiosInstance();
 
-  return axiosInstance
-    .get<GetDataResponse[]>("/GetData", params)
-    .then((res) => res.data)
-    .catch((err) => err);
+  const body: GetDataBatchRawQuery = {
+    TagName: tagNames,
+    StartTime: startTime,
+    EndTime: endTime,
+    TimeFormat: 6,
+    OutputTimeFormat: PHDQuery.OutputTimeFormat,
+    MinimumConfidence: PHDQuery.MinimumConfidence,
+    ...(sampleIntervalMs ? { SampleInterval: sampleIntervalMs } : { RawData: true }),
+  };
+
+  const res = await axiosInstance.post<GetDataBatchRawResponse[]>("/GetData", [body]);
+  return res.data;
 };
 
 export interface GetDataBatchQuery {
