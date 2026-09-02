@@ -83,3 +83,48 @@ export const getData = async (params: AxiosRequestConfig) => {
     .then((res) => res.data)
     .catch((err) => err);
 };
+
+export interface GetDataBatchQuery {
+  TagName: string[];
+  StartTime: string;
+  EndTime: string;
+  TimeFormat?: number;
+  OutputTimeFormat: number;
+  MinimumConfidence: number;
+  SampleInterval: number;
+  ReductionData: "avg";
+}
+
+export interface GetDataBatchResponse {
+  TagName: string;
+  TagNumber: number;
+  TimeStamp: string[];
+  Aggregate: string[];
+  Value: number[];
+  Tolerance: number[];
+  Confidence: number[];
+}
+
+// Batched equivalent of getData: PHD's RESTful API only accepts array
+// TagName values over POST - GET requests are restricted to a single tag
+// (see pim5401.pdf, "RESTful API Requests").
+//
+// This uses a true ReductionData "avg" reduction (not PHD's "ARRAYS"
+// modifier, which live testing showed this server (v430.1.2.1) silently
+// ignores - it always falls back to interpolated/resampled points instead
+// of real per-interval averages, which measured up to 51% off from the
+// true value on some tags). A multi-tag "avg" reduction request over a
+// *short* window (e.g. one hour) is fast and stable and returns an exact,
+// byte-identical match to the single-tag equivalent; the same request over
+// a full *day* window was observed to hang the server for minutes. Callers
+// must keep the StartTime/EndTime span short (see getBatchedRecords.ts,
+// which loops hour-by-hour) rather than requesting a wide range here.
+export const getDataBatch = async (body: GetDataBatchQuery[]) => {
+  const axiosInstance = await createAxiosInstance();
+
+  const res = await axiosInstance.post<GetDataBatchResponse[]>(
+    "/GetData",
+    body
+  );
+  return res.data;
+};

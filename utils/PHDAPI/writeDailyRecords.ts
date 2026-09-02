@@ -1,11 +1,11 @@
 import { PHDTag, Prisma } from "@prisma/client";
+import _ from "lodash";
 import ms from "ms";
 import PHDTagExtended from "../../entities/PHDTagExtended";
 import { JobLogger } from "../../misc/logger";
 import { prisma } from "../../prisma/client";
-import getAverageOfDailyRecord from "./getAverageOfDailyRecord";
-import getSumOfDailyRecord from "./getSumOfDailyRecord";
-import { getPreviousDayDate } from "./helperFunctions";
+import { getExactHourlyValuesBatch } from "./getBatchedRecords";
+import { getPreviousDayDate, getPreviousDayTime } from "./helperFunctions";
 
 const MAX_RETRIES = 3; // Maximum number of retry attempts
 const RETRY_DELAY = ms("5s"); // Delay between retries
@@ -38,21 +38,28 @@ const writeDailyRecords = async () => {
 };
 
 const proceedTags = async (tx: Prisma.TransactionClient, timestamp: Date) => {
-  const tags = await tx.pHDTag.findMany({ include: { unit: true } });
+  const tags: PHDTagExtended[] = await tx.pHDTag.findMany({
+    include: { unit: true },
+  });
+
+  const previousDay = getPreviousDayTime();
+
+  // Fetch every tag's 24 true hourly averages, batched across tags per
+  // hour (24 requests total, chunked internally) instead of one request
+  // per tag per hour.
+  const hourlyValues = await getExactHourlyValuesBatch(
+    tags.map((tag) => tag.tagname),
+    previousDay
+  );
 
   for (let tag of tags) {
-    const value = await getValue(tag);
+    const values = hourlyValues.get(tag.tagname) ?? [];
+    const value = tag.unit.name === "%" ? _.mean(values) || 0 : _.sum(values);
     await recordValue(tx, tag, value, timestamp);
     logRecord(tag, value);
   }
 
   logResult(tags);
-};
-
-const getValue = async (tag: PHDTagExtended) => {
-  return tag.unit.name === "%"
-    ? await getAverageOfDailyRecord(tag.tagname)
-    : await getSumOfDailyRecord(tag.tagname);
 };
 
 const recordValue = async (
