@@ -5,5 +5,5 @@ node_modules/
 .initialized
 secret_key.txt
 
-/windows/cert.pfx
-/windows/certPassword
+/cert/
+/cert-upload-tmp/

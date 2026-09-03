@@ -9,7 +9,7 @@
     "test-source": "ts-node utils/PHDAPI/testPHDAPI.ts",
     "write-data": "ts-node utils/PHDAPI/writeData.ts",
     "create-superuser": "ts-node createSuperUser.ts",
-    "set-cert": "ts-node digitCert.ts",
+    "setup:tls-cert": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-tls-cert.ps1",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev"
   },

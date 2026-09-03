@@ -70,3 +70,8 @@ export const updateTargetSchema = z.object({
 export const updateConstantSchema = z.object({
   value: z.number(),
 });
+
+export const uploadTlsCertRequestSchema = z.object({
+  pfxBase64: z.string().min(1),
+  passphrase: z.string().min(1),
+});
