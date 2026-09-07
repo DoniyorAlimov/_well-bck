@@ -7,14 +7,24 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding reference data...");
 
-  // 1. Units
+  // 1. Default DataSource
+  // DataSource has no unique field to upsert on (id/host/port aren't
+  // constrained), so guard with a findFirst instead — safe to re-run.
+  const existingDataSource = await prisma.dataSource.findFirst();
+  if (!existingDataSource) {
+    await prisma.dataSource.create({
+      data: { host: "localhost", port: 3152 },
+    });
+  }
+
+  // 2. Units
   const unitM3h = await prisma.unit.upsert({
     where: { name: "m3/h" },
     update: {},
     create: { name: "m3/h", description: "Cubic meters per hour" },
   });
 
-  // 2. Utility Types (Asset Types)
+  // 3. Utility Types (Asset Types)
   // We exclude Gas, Steam, Electricity, Heat by simply not creating them or relying on migration to clean them up.
   // We ensure Field, Platform, Cluster, Well, and Pipeline exist.
   const utilityTypes = [
@@ -36,7 +46,7 @@ async function main() {
     );
   }
 
-  // 3. Attribute Types
+  // 4. Attribute Types
   // Defining standard attributes for production analytics
   const attributes = [
     // Actuals
