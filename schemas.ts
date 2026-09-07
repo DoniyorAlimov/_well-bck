@@ -75,3 +75,13 @@ export const uploadTlsCertRequestSchema = z.object({
   pfxBase64: z.string().min(1),
   passphrase: z.string().min(1),
 });
+
+export const backfillSchema = z
+  .object({
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+  })
+  .refine((data) => data.startDate <= data.endDate, {
+    message: "Start date must be before end date",
+    path: ["startDate"],
+  });

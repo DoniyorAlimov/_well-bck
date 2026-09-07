@@ -12,17 +12,21 @@ const RETRY_DELAY = ms("5s"); // Delay between retries
 const TRANSACTION_TIMEOUT = ms("10m"); // Transaction timeout in milliseconds (10 minutes)
 
 const writeDailyRecords = async () => {
-  JobLogger.info("Starting job...");
+  await writeRecordsForDay(getPreviousDayDate(), getPreviousDayTime());
+};
 
-  // Getting previous date
-  const timestamp = getPreviousDayDate();
+// Fetches and stores one day's hourly-aggregated records for every PHD tag.
+// Shared by the nightly job (previous day) and manual backfill (arbitrary
+// past days, see backfillRecords.ts) below.
+export const writeRecordsForDay = async (timestamp: Date, dayStart: string) => {
+  JobLogger.info(`Starting job for ${dayStart}...`);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       // Start a transaction
       await prisma.$transaction(
         async (tx) => {
-          await proceedTags(tx, timestamp);
+          await proceedTags(tx, timestamp, dayStart);
         },
         { timeout: TRANSACTION_TIMEOUT }
       );
@@ -37,20 +41,31 @@ const writeDailyRecords = async () => {
   }
 };
 
-const proceedTags = async (tx: Prisma.TransactionClient, timestamp: Date) => {
+const proceedTags = async (
+  tx: Prisma.TransactionClient,
+  timestamp: Date,
+  dayStart: string
+) => {
   const tags: PHDTagExtended[] = await tx.pHDTag.findMany({
     include: { unit: true },
   });
-
-  const previousDay = getPreviousDayTime();
 
   // Fetch every tag's 24 true hourly averages, batched across tags per
   // hour (24 requests total, chunked internally) instead of one request
   // per tag per hour.
   const hourlyValues = await getExactHourlyValuesBatch(
     tags.map((tag) => tag.tagname),
-    previousDay
+    dayStart
   );
+
+  // Record has no unique constraint on (PHDTagId, timestamp), so clear out
+  // any records already stored for this day before writing fresh ones —
+  // otherwise re-running a day (a repeat backfill, or a backfill range
+  // that overlaps the nightly job) piles up duplicates instead of
+  // replacing the values.
+  await tx.record.deleteMany({
+    where: { PHDTagId: { in: tags.map((tag) => tag.id) }, timestamp },
+  });
 
   for (let tag of tags) {
     const values = hourlyValues.get(tag.tagname) ?? [];
