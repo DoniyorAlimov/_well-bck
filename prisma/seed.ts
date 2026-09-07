@@ -16,9 +16,10 @@ async function main() {
 
   // 2. Utility Types (Asset Types)
   // We exclude Gas, Steam, Electricity, Heat by simply not creating them or relying on migration to clean them up.
-  // We ensure Field, Cluster, Well, and Pipeline exist.
+  // We ensure Field, Platform, Cluster, Well, and Pipeline exist.
   const utilityTypes = [
     { name: "Field", description: "Oil and Gas Field (Root)" },
+    { name: "Platform", description: "Production Platform" },
     { name: "Cluster", description: "Production Cluster" },
     { name: "Well", description: "Oil/Gas Well" },
     { name: "Pipeline", description: "Transport Pipeline" },
@@ -51,7 +52,7 @@ async function main() {
   ];
 
   // All 8 flow attributes apply at every level of the production hierarchy
-  // (Field/Cluster/Well/Pipeline). Each asset type owns its own copy of each
+  // (Field/Platform/Cluster/Well/Pipeline). Each asset type owns its own copy of each
   // attribute (AttributeType.name is unique per utilityTypeId, not
   // globally), matching the behavior every asset had before this existed
   // (every asset got every attribute type).
